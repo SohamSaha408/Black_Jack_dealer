@@ -1,15 +1,14 @@
-
-
-
-
 import streamlit as st
-import requests
 import random
 import os
 from gtts import gTTS
-from pathlib import Path
 
-# === Blackjack Card Setup ===
+# === Ensure 'cards/' directory exists ===
+if not os.path.exists('cards'):
+    os.makedirs('cards')
+    st.warning("🗂️ 'cards' folder created! Please upload your card image files (e.g., 2_of_hearts.png) into this directory.")
+
+# === Setup ===
 suits = ['hearts', 'diamonds', 'clubs', 'spades']
 ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king', 'ace']
 
@@ -36,13 +35,12 @@ def card_to_image_filename(card):
     rank, suit = card
     return f"cards/{rank.lower()}_of_{suit.lower()}.png"
 
-# === TTS: Convert text to voice ===
 def speak(text, filename="dealer_voice.mp3"):
     tts = gTTS(text)
     tts.save(filename)
     return filename
 
-# === Game state ===
+# === Game State Initialization ===
 if 'deck' not in st.session_state:
     st.session_state.deck = create_deck()
     random.shuffle(st.session_state.deck)
@@ -56,24 +54,33 @@ if 'dealer_hand' not in st.session_state:
 if 'game_over' not in st.session_state:
     st.session_state.game_over = False
 
-# === UI ===
+# === UI Header ===
 st.set_page_config(page_title="Blackjack with AI Dealer")
 st.title("🃏 Blackjack AI Dealer with Voice")
 
-# === Display Hands ===
+# === Display Player Cards ===
 st.markdown("### 🧑 Your Cards:")
 for card in st.session_state.player_hand:
-    st.image(card_to_image_filename(card), width=100)
+    img_path = card_to_image_filename(card)
+    if os.path.exists(img_path):
+        st.image(img_path, width=100)
+    else:
+        st.text(f"{card[0].title()} of {card[1].title()} (image missing)")
 
 st.markdown(f"**Total:** {hand_value(st.session_state.player_hand)}")
 
+# === Display Dealer Cards if Game Over ===
 if st.session_state.game_over:
     st.markdown("### 🧑 Dealer's Cards:")
     for card in st.session_state.dealer_hand:
-        st.image(card_to_image_filename(card), width=100)
+        img_path = card_to_image_filename(card)
+        if os.path.exists(img_path):
+            st.image(img_path, width=100)
+        else:
+            st.text(f"{card[0].title()} of {card[1].title()} (image missing)")
     st.markdown(f"**Dealer Total:** {hand_value(st.session_state.dealer_hand)}")
 
-# === Game Actions ===
+# === Game Buttons ===
 if not st.session_state.game_over:
     col1, col2 = st.columns(2)
 
@@ -87,7 +94,7 @@ if not st.session_state.game_over:
             st.session_state.dealer_hand.append(st.session_state.deck.pop())
         st.session_state.game_over = True
 
-# === Voice Narration ===
+# === Dealer Voice Outcome ===
 msg = ""
 if st.session_state.game_over:
     player_score = hand_value(st.session_state.player_hand)
@@ -108,8 +115,8 @@ if st.session_state.game_over:
     mp3_path = speak(msg)
     st.audio(mp3_path)
 
-# === Reset Button ===
-if st.button("Restart Game"):
+# === Restart Game ===
+if st.button("🔁 Restart Game"):
     st.session_state.deck = create_deck()
     random.shuffle(st.session_state.deck)
     st.session_state.player_hand = [st.session_state.deck.pop(), st.session_state.deck.pop()]
@@ -117,11 +124,3 @@ if st.button("Restart Game"):
     st.session_state.game_over = False
     if os.path.exists("dealer_voice.mp3"):
         os.remove("dealer_voice.mp3")
-import os
-
-# Create the 'cards' directory if it doesn't exist
-if not os.path.exists('cards'):
-    os.makedirs('cards')
-    print("Created 'cards' directory. Please upload your card image files into this directory.")
-else:
-    print("'cards' directory already exists.")
